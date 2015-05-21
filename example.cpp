@@ -3,7 +3,7 @@
 // Example: minimizing an energy function with Potts terms.
 // See type*.h files for other types of terms.
 
-void testGeneral(char* configFileName, int numIter)
+void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
 {
 	MRFEnergy<TypeGeneral>* mrf;
 	MRFEnergy<TypeGeneral>::NodeId* nodes;
@@ -20,14 +20,18 @@ void testGeneral(char* configFileName, int numIter)
 	vector<vector<TypeGeneral::REAL*> > binary_pot;
 	vector<vector<TypeGeneral::REAL*> > loc_binary;
 	vector<vector<TypeGeneral::REAL*> > phog_binary;
+
+	vector<vector<vector<Rect_<int> > > > gtTubes, detTubes;
 	string writePath;
 
-    loadPotentials(configFileName, unary_pot, handpath_unary, skin_unary, saliency_unary, size_unary,
-                   binary_pot, loc_binary, phog_binary, numNodes, numLabels, writePath);
+    loadPotentials(configFileName, paramIter, unary_pot, handpath_unary, skin_unary, saliency_unary, size_unary,
+                   binary_pot, loc_binary, phog_binary, numNodes, numLabels, writePath, gtTubes, detTubes);
 
 //    float sal_un=0.5, skin_un=0.5, size_un=0.5, phog_bn=0.5;
 
     float wgt[] = {0.0,0.05,0.25,0.50,0.75,1.00};
+    double overlap = 0;
+    double precision, recall;
 
     // grid search for best parameters
     for(int sal_un=0; sal_un<6; sal_un++){
@@ -68,17 +72,18 @@ void testGeneral(char* configFileName, int numIter)
                             }
 
                             /////////////////////// TRW-S algorithm //////////////////////
-                            options.m_iterMax = numIter; // maximum number of iterations
+                            options.m_iterMax = numBeliefIter; // maximum number of iterations
                             mrf->Minimize_TRW_S(options, lowerBound, energy);
 
-//                            ////////////////// solution-gt overlap //////////////////////
-//                            vector<int> solution_tube_ids(numNodes,0);
-//                            for(int idx=0; idx<numNodes; ++idx){
-//                                solution_tube_ids[idx] = mrf->GetSolution(nodes[idx]);
-//                                if(solution_tube_ids[idx] == numNodes-1)
-//                                    solution_tube_ids[idx] = -1;
-//                            }
-//                            double overlap = calculate_solution_gt_overlap(gt_tubes,det_tubes,solution_tube_ids);
+                            ////////////////// solution-gt overlap //////////////////////
+                            vector<int> solution_tube_ids(numNodes,0);
+                            for(int idx=0; idx<numNodes; ++idx){
+                                solution_tube_ids[idx] = mrf->GetSolution(nodes[idx]);
+                                if(solution_tube_ids[idx] == numLabels-1)
+                                    solution_tube_ids[idx] = -1;
+                            }
+                            overlap = calculate_solution_gt_overlap(gtTubes,detTubes,solution_tube_ids);
+                            calculate_precision_recall(gtTubes, detTubes, solution_tube_ids, precision, recall);
 
 
             #if WRITE_FLAG
@@ -89,14 +94,14 @@ void testGeneral(char* configFileName, int numIter)
                                 oStream<<mrf->GetSolution(nodes[idx])<<" ";
                                 cout<<mrf->GetSolution(nodes[idx])<<" ";
                             }
-                            cout<<endl;
-                            oStream<<endl;
+                            cout<< overlap <<" "<< precision <<" "<< recall <<endl;
+                            oStream<<overlap <<" "<< precision <<" "<< recall <<endl;
                             oStream.close();
             #else
                             for(int idx=0; idx<numNodes; ++idx){
                                 cout<<mrf->GetSolution(nodes[idx])+1<<" ";
                             }
-                            cout<<endl;
+                            cout<<overlap <<" "<< precision <<" "<< recall <<endl;
             #endif
 
                             // done
@@ -120,7 +125,13 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-	testGeneral(argv[1],atoi(argv[2]));
+#if REPLACE_LAST_TUBE_AS_NULL
+	for(int iterIdx=0; iterIdx<=NUM_ITER; ++iterIdx){
+	    testGeneral(argv[1],atoi(argv[2]),iterIdx);
+	}
+#else
+    testGeneral(argv[1],atoi(argv[2]),NUM_ITER+1);
+#endif
 	return 0;
 }
 
