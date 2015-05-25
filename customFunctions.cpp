@@ -276,6 +276,7 @@ double calculate_precision_recall(const vector<vector<vector<Rect_<int> > > >& r
                 }
                 else{
                     fp += 1;
+                    fn += 1;
                 }
             }
         }
@@ -358,12 +359,12 @@ int loadTubes(const StructParam* param, const VideoAnno& anno, vector<vector<Rec
     fileName =  param->tube_file_path+"_"+anno.object_name;
     fileName += "_"+anno.seq_name+"_"+sSFr.str()+"_"+sEFr.str()+".txt";
 
-    cout<<"tubes file name: "<<fileName<<endl;
-
     vvRect.clear();
     ifstream iStream(fileName.c_str());
     iStream >> num_tubes;
     iStream >> num_frames;
+
+    cout<<"tubes file name: "<<fileName << " " << num_tubes << " " << num_frames <<endl;
 
     vvRect.resize(num_tubes, vector<Rect>(num_frames));
     for(int tubeidx=0; tubeidx<num_tubes; ++tubeidx){
@@ -393,7 +394,7 @@ int loadGtTubes(const StructParam* param, const VideoAnno& anno, vector<vector<R
     fileName =  param->data_path+"processed_data/table-object"+anno.object_name+"/groundtruth/gt_0";
     fileName += anno.seq_name+"_"+sSFr.str()+"_"+sEFr.str()+".txt";
 
-    cout<<"gt file name: " << fileName<<endl;
+    cout<<"gtrut file name: "<<fileName <<endl;
 
     ifstream iStream(fileName.c_str());
     for(unsigned int frameidx=0; frameidx<vvRect[0].size(); ++frameidx){
