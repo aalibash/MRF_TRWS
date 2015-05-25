@@ -235,7 +235,7 @@ double calculate_solution_gt_overlap(const vector<vector<vector<Rect_<int> > > >
 
                 Rect inter = refRect & tstRect;
                 areaI = inter.width*inter.height;
-                areaU = refRect.width*refRect.height + tstRect.width*tstRect.height;
+                areaU = refRect.width*refRect.height + tstRect.width*tstRect.height + FLT_MIN;
 
                 tempGoodness += (double)areaI/areaU;
             }
@@ -305,6 +305,7 @@ int ObjectAnno::loadVideoAnno(StructParam* par){
         return -1;
     }
 
+#if ETHZ_ACTION_DATASET
     // set paths for each action sequence
     try{
 
@@ -334,6 +335,51 @@ int ObjectAnno::loadVideoAnno(StructParam* par){
 //            cout<<vVideoAnno[i].jnt_rgb_un_file_path<<endl;
         }
     }
+#elif CAD_120_DATASET
+    // set paths for each action sequence
+    try{
+
+        const Setting &action_files = configFile.getRoot()["action_files"];
+        vVideoAnno.resize(action_files.getLength());
+        for(unsigned int i=0;i<vVideoAnno.size();++i) {
+
+            string object_name = (const char*)action_files[i]["object_name"];
+            string seq_name    = (const char*)action_files[i]["seq_name"];
+            string subseq_name = (const char*)action_files[i]["subseq_name"];
+
+            vVideoAnno[i].object_name          = object_name;
+            vVideoAnno[i].seq_name             = seq_name;
+            vVideoAnno[i].subseq_name          = subseq_name;
+            vVideoAnno[i].param                = par;
+            vVideoAnno[i].start_frame          = action_files[i]["start_frame"];
+            vVideoAnno[i].start_frame          -= 1;
+            vVideoAnno[i].end_frame            = action_files[i]["end_frame"];
+            vVideoAnno[i].end_frame            -= 2;
+
+            vVideoAnno[i].bmf_file_path        = par->bmf_file_path+"/"+subseq_name+".txt";
+            vVideoAnno[i].rgb_file_path        = par->data_path+object_name+"/"+seq_name+"/"+subseq_name;
+            vVideoAnno[i].dep_file_path        = par->data_path+object_name+"/"+seq_name+"/"+subseq_name;
+            vVideoAnno[i].opt_file_path        = par->data_path+"opticalflow/"+object_name+"/"+seq_name+"/"+subseq_name;;
+            vVideoAnno[i].spx_file_path        = par->data_path+"superpixels/"+object_name+"/"+seq_name+"/"+subseq_name;;
+            vVideoAnno[i].jnt_rgb_un_file_path = par->jnt_path+"/"+subseq_name+".txt";
+
+//            vVideoAnno[i].pos_3d_file_path     = par->data_path+"/table-object"+object_name;
+
+//            cout<<vVideoAnno[i].bmf_file_path<<endl;
+//            cout<<vVideoAnno[i].spx_file_path<<endl;
+//            cout<<vVideoAnno[i].jnt_rgb_un_file_path<<endl;
+
+            if(object_name.find("Subject1") != string::npos)
+                vVideoAnno[i].actor_idx=0;
+            else if(object_name.find("Subject3") != string::npos)
+                vVideoAnno[i].actor_idx=1;
+            else if(object_name.find("Subject4") != string::npos)
+                vVideoAnno[i].actor_idx=2;
+            else
+                vVideoAnno[i].actor_idx=3;
+        }
+    }
+#endif
 
     catch(const SettingNotFoundException &nfex) {
         cerr << "Not found in configuration file!" << endl;
@@ -356,8 +402,13 @@ int loadTubes(const StructParam* param, const VideoAnno& anno, vector<vector<Rec
     // get tube file name
     sSFr << anno.start_frame;
     sEFr << anno.end_frame;
+
+#if ETHZ_ACTION_DATASET
     fileName =  param->tube_file_path+"_"+anno.object_name;
     fileName += "_"+anno.seq_name+"_"+sSFr.str()+"_"+sEFr.str()+".txt";
+#elif CAD_120_DATASET
+    fileName =  param->tube_file_path+"/"+anno.subseq_name+".txt";
+#endif
 
     vvRect.clear();
     ifstream iStream(fileName.c_str());
@@ -391,8 +442,13 @@ int loadGtTubes(const StructParam* param, const VideoAnno& anno, vector<vector<R
     // get ground truth tube file name
     sSFr << anno.start_frame;
     sEFr << anno.end_frame;
+
+#if ETHZ_ACTION_DATASET
     fileName =  param->data_path+"processed_data/table-object"+anno.object_name+"/groundtruth/gt_0";
     fileName += anno.seq_name+"_"+sSFr.str()+"_"+sEFr.str()+".txt";
+#elif CAD_120_DATASET
+    fileName =  param->gt_path+"/"+anno.subseq_name+".txt";
+#endif
 
     cout<<"gtrut file name: "<<fileName <<endl;
 

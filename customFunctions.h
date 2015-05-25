@@ -49,6 +49,12 @@ struct VideoAnno{
     string jnt_dep_file_path;
     string pos_3d_file_path;
     const  StructParam* param;
+
+#if CAD_120_DATASET
+    string subseq_name;
+    int actor_idx;
+#endif
+
 };
 
 struct ObjectAnno{

@@ -10,6 +10,9 @@
 #include <vector>
 #include <fstream>
 
+#define ETHZ_ACTION_DATASET         0
+#define CAD_120_DATASET             1
+
 struct img_size {
     int h;
     int w;
@@ -45,6 +48,12 @@ struct StructParam {
     int perc_dist_hand_head;        // distance around hand to sample
     int num_frames_qual_eval;       // number of frames for tube quality evaluation
     int num_frames_surf_bow;        // number of images for SURF BoW dictionary
+
+#if CAD_120_DATASET
+    std::string gt_path;            // path to ground truth
+    std::string bmf_file_path;
+    std::string jnt_path;
+#endif
 };
 
 template<typename T>

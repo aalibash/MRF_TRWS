@@ -56,8 +56,11 @@ bool StructParam::loadConfigVideoTrain(const char* filename) {
         // path for pose-w.r.t-rgb-image file
         joints_rgb_idn = (const char*)configFile.lookup("joints_rgb_idn");
         joints_dep_idn = (const char*)configFile.lookup("joints_dep_idn");
+
+#if ETHZ_ACTION_DATASET
         // RGB camera calibration file
         rgb_calib_path = (const char*)configFile.lookup("rgb_calib_path");
+#endif
 
         // size priors
         size_prior_mu.w  = 40;
@@ -80,6 +83,12 @@ bool StructParam::loadConfigVideoTrain(const char* filename) {
 
         // path to save the tubes
         tube_file_path = (const char*)configFile.lookup("tube_file_path");
+
+#if CAD_120_DATASET
+        gt_path = (const char*)configFile.lookup("gt_path");
+        bmf_file_path = (const char*)configFile.lookup("bmf_file_path");
+        jnt_path = (const char*)configFile.lookup("joint_file_path");
+#endif
 
 //        cout<<"debug : "<<endl;
 //        cout<<"data_path : "<<data_path<<endl;
