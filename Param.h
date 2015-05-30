@@ -11,7 +11,8 @@
 #include <fstream>
 
 #define ETHZ_ACTION_DATASET         0
-#define CAD_120_DATASET             1
+#define CAD_120_DATASET             0
+#define MPII_COOKING_DATASET        1
 
 struct img_size {
     int h;
@@ -49,12 +50,21 @@ struct StructParam {
     int num_frames_qual_eval;       // number of frames for tube quality evaluation
     int num_frames_surf_bow;        // number of images for SURF BoW dictionary
 
-#if CAD_120_DATASET
+#if CAD_120_DATASET || MPII_COOKING_DATASET
     std::string gt_path;            // path to ground truth
     std::string bmf_file_path;
     std::string jnt_path;
 #endif
+
+#if MPII_COOKING_DATASET
+    int tube_len;
+#endif
 };
+
+template<typename T1, typename T2>
+std::ostream& operator << (std::ostream& out, const std::pair<T1,T2>& inpair){
+    out << "[" << inpair.first << "," << inpair.second <<"]" << "\t";
+}
 
 template<typename T>
 std::ostream& operator<< (std::ostream& out, const std::vector<T>& v) {

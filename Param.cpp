@@ -90,6 +90,11 @@ bool StructParam::loadConfigVideoTrain(const char* filename) {
         jnt_path = (const char*)configFile.lookup("joint_file_path");
 #endif
 
+#if MPII_COOKING_DATASET
+        gt_path = (const char*)configFile.lookup("gt_path");
+        tube_len = configFile.lookup("tube_length");
+#endif
+
 //        cout<<"debug : "<<endl;
 //        cout<<"data_path : "<<data_path<<endl;
 

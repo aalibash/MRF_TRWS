@@ -6,7 +6,8 @@ using namespace libconfig;
 void loadPotentials(char* configFile, const int paramIter, vector<TypeGeneral::REAL*>& unary, vector<TypeGeneral::REAL*>& handpath_unary,
                     vector<TypeGeneral::REAL*>& skin_unary, vector<TypeGeneral::REAL*>& saliency_unary, vector<TypeGeneral::REAL*>& size_unary,
                     vector<vector<TypeGeneral::REAL*> >& binary, vector<vector<TypeGeneral::REAL*> >& loc_binary, vector<vector<TypeGeneral::REAL*> >& phog_binary,
-                    int& nodeNum, int& numLabels, string& writePath, vector<vector<vector<Rect_<int> > > >& gtTubes, vector<vector<vector<Rect_<int> > > >& detTubes){
+                    int& nodeNum, int& numLabels, string& writePath, vector<vector<vector<Rect_<int> > > >& gtTubes, vector<vector<vector<Rect_<int> > > >& detTubes,
+                    vector<vector<pair<int,int> > >& tubeBounds){
 
     string handpath_unary_path, skin_unary_path, saliency_unary_path, size_unary_path, loc_binary_path, phog_binary_path, filtered_tube_ind_path;
     string configFilePath;
@@ -43,11 +44,16 @@ void loadPotentials(char* configFile, const int paramIter, vector<TypeGeneral::R
 
     gtTubes.resize(oAnno.size());
     detTubes.resize(oAnno.size());
+    tubeBounds.resize(oAnno.size());
     for(unsigned int idx=0; idx<oAnno.size(); ++idx){
         loadGtTubes(&param, oAnno.vVideoAnno[idx], gtTubes[idx]);
         loadTubes(&param, oAnno.vVideoAnno[idx], detTubes[idx]);
+#if MPII_COOKING_DATASET
+        loadTubeBounds(&param,oAnno.vVideoAnno[idx],tubeBounds[idx]);
+#endif
     }
 
+#if ETHZ_ACTION_DATASET || CAD_120_DATASET
     // read the tubes that must be selected
     vector<vector<bool> > isChosen;
     iStream.open(filtered_tube_ind_path.c_str());
@@ -63,6 +69,7 @@ void loadPotentials(char* configFile, const int paramIter, vector<TypeGeneral::R
         }
     }
     iStream.close();
+#endif
 
     // read handpath_unary potentials
     iStream.open(handpath_unary_path.c_str());
@@ -215,9 +222,11 @@ void destroyPotentials(vector<TypeGeneral::REAL*>& unary, vector<TypeGeneral::RE
     }
 }
 
-double calculate_solution_gt_overlap(const vector<vector<vector<Rect_<int> > > >& refTubes, const vector<vector<vector<Rect_<int> > > >& tstTubes, const vector<int>& indices){
+double calculate_solution_gt_overlap(const vector<vector<vector<Rect_<int> > > >& refTubes, const vector<vector<vector<Rect_<int> > > >& tstTubes,
+                                     const vector<vector<pair<int,int> > >& tubeBounds, const vector<int>& indices){
     double goodness=0, tempGoodness;
     int num_videos=0;
+    int startIdx, endIdx;
     int   tstIdx;
     float areaI, areaU;
     Rect  refRect, tstRect;
@@ -228,7 +237,14 @@ double calculate_solution_gt_overlap(const vector<vector<vector<Rect_<int> > > >
             num_videos +=1;
             tempGoodness = 0;
 
-            for(unsigned int idx=0; idx<tstTubes[shotIdx][tstIdx].size(); ++idx){
+            startIdx=0;
+            endIdx=tstTubes[shotIdx][tstIdx].size();
+#if MPII_COOKING_DATASET
+            startIdx = tubeBounds[shotIdx][tstIdx].first;
+            endIdx = tubeBounds[shotIdx][tstIdx].second;
+#endif
+
+            for(unsigned int idx=startIdx; idx<endIdx; ++idx){
 
                 refRect = refTubes[shotIdx][0][idx];
                 tstRect = tstTubes[shotIdx][tstIdx][idx];
@@ -237,6 +253,7 @@ double calculate_solution_gt_overlap(const vector<vector<vector<Rect_<int> > > >
                 areaI = inter.width*inter.height;
                 areaU = refRect.width*refRect.height + tstRect.width*tstRect.height + FLT_MIN;
 
+//                cout << areaI << " " << areaU << "\t" << flush;
                 tempGoodness += (double)areaI/areaU;
             }
             tempGoodness /= tstTubes[shotIdx][tstIdx].size();
@@ -379,6 +396,44 @@ int ObjectAnno::loadVideoAnno(StructParam* par){
                 vVideoAnno[i].actor_idx=3;
         }
     }
+
+#elif MPII_COOKING_DATASET
+    // set paths for each action sequence
+    try{
+
+        const Setting &action_files = configFile.getRoot()["action_files"];
+        vVideoAnno.resize(action_files.getLength());
+        for(unsigned int i=0;i<vVideoAnno.size();++i) {
+
+            string object_name = (const char*)action_files[i]["object_name"];
+            string seq_name    = (const char*)action_files[i]["seq_name"];
+
+            vVideoAnno[i].object_name          = object_name;
+            vVideoAnno[i].seq_name             = seq_name;
+            vVideoAnno[i].param                = par;
+            vVideoAnno[i].start_frame          = action_files[i]["start_frame"];
+            vVideoAnno[i].end_frame            = action_files[i]["end_frame"];
+            vVideoAnno[i].end_frame           -= 1;
+
+            if(vVideoAnno[i].end_frame-vVideoAnno[i].start_frame > 600){
+                vVideoAnno[i].end_frame = vVideoAnno[i].start_frame+599;
+            }
+//            vVideoAnno[i].end_frame           -= 2;
+
+            vVideoAnno[i].bmf_file_path        = par->data_path+"processed_data/bmf_files/"+seq_name+".bmf";
+            vVideoAnno[i].rgb_file_path        = par->data_path+"images/"+seq_name+"/cam-002";
+            vVideoAnno[i].dep_file_path        = par->data_path+"processed_data/table-object"+object_name+"/for_superpixel";
+            vVideoAnno[i].opt_file_path        = par->data_path+"opticalFlow/"+seq_name+"/cam-002";
+            vVideoAnno[i].spx_file_path        = par->data_path+"processed_data/superpixels/"+seq_name+"/cam-002";
+            vVideoAnno[i].jnt_rgb_un_file_path = par->data_path+"processed_data/jnt_loc/"+seq_name+".txt";
+            vVideoAnno[i].jnt_dep_file_path    = par->data_path+"processed_data/table-object"+object_name+"/joints_rgb/"+par->joints_dep_idn+"_0"+seq_name+".txt";
+            vVideoAnno[i].pos_3d_file_path     = par->data_path+"/table-object"+object_name;
+
+//            cout<<vVideoAnno[i].start_frame<<endl;
+//            cout<<vVideoAnno[i].spx_file_path<<endl;
+//            cout<<vVideoAnno[i].jnt_rgb_un_file_path<<endl;
+        }
+    }
 #endif
 
     catch(const SettingNotFoundException &nfex) {
@@ -408,6 +463,8 @@ int loadTubes(const StructParam* param, const VideoAnno& anno, vector<vector<Rec
     fileName += "_"+anno.seq_name+"_"+sSFr.str()+"_"+sEFr.str()+".txt";
 #elif CAD_120_DATASET
     fileName =  param->tube_file_path+"/"+anno.subseq_name+".txt";
+#elif MPII_COOKING_DATASET
+    fileName =  param->tube_file_path+"_"+anno.seq_name+"_"+sSFr.str()+"_"+sEFr.str()+".txt";
 #endif
 
     vvRect.clear();
@@ -438,6 +495,7 @@ int loadGtTubes(const StructParam* param, const VideoAnno& anno, vector<vector<R
 
     string fileName;
     stringstream sSFr, sEFr;
+    ifstream iStream;
 
     // get ground truth tube file name
     sSFr << anno.start_frame;
@@ -446,13 +504,28 @@ int loadGtTubes(const StructParam* param, const VideoAnno& anno, vector<vector<R
 #if ETHZ_ACTION_DATASET
     fileName =  param->data_path+"processed_data/table-object"+anno.object_name+"/groundtruth/gt_0";
     fileName += anno.seq_name+"_"+sSFr.str()+"_"+sEFr.str()+".txt";
+    iStream.open(fileName.c_str());
 #elif CAD_120_DATASET
     fileName =  param->gt_path+"/"+anno.subseq_name+".txt";
+    iStream.open(fileName.c_str());
+#elif MPII_COOKING_DATASET
+    fileName = param->gt_path+anno.seq_name+"/cam-002/gt_"+sSFr.str()+"_"+sEFr.str()+".txt";
+    iStream.open(fileName.c_str());
+    if(!iStream){
+        sSFr.str(""); sEFr.str("");
+        sSFr << anno.start_frame;
+        sEFr << anno.end_frame-1;
+        fileName =  param->gt_path+anno.seq_name+"/cam-002/gt_"+sSFr.str()+"_"+sEFr.str()+".txt";
+        iStream.open(fileName.c_str());
+    }
+    int dummy;
+    iStream >> dummy;
+    iStream >> dummy;
+    vvRect[0].resize(dummy);
 #endif
 
-    cout<<"gtrut file name: "<<fileName <<endl;
+    cout<<"gtrut file name: "<<fileName<< " size: " << vvRect[0].size() <<endl;
 
-    ifstream iStream(fileName.c_str());
     for(unsigned int frameidx=0; frameidx<vvRect[0].size(); ++frameidx){
         iStream >> vvRect[0][frameidx].x;
         iStream >> vvRect[0][frameidx].y;
@@ -462,3 +535,77 @@ int loadGtTubes(const StructParam* param, const VideoAnno& anno, vector<vector<R
     iStream.close();
     return 0;
 }
+
+
+#if MPII_COOKING_DATASET
+int loadTubeBounds(const StructParam* param, const VideoAnno& anno, vector<pair<int,int> >& vBounds){
+    string fileName;
+    int num_tubes, dummy, startIdx, endIdx;
+    stringstream sSFr, sEFr;
+    int vFileListSize = anno.end_frame-anno.start_frame+1;
+
+    // get tube file name
+    sSFr << anno.start_frame;
+    sEFr << anno.end_frame;
+    fileName =  param->tube_file_path+"eeds_"+anno.seq_name+"_"+sSFr.str()+"_"+sEFr.str()+".txt";
+    sSFr.str(""); sEFr.str("");
+
+    vBounds.clear();
+    ifstream iStream;
+
+    iStream.open(fileName.c_str());
+    if(!iStream){
+        sSFr << anno.start_frame;
+        sEFr << anno.end_frame-1;
+        fileName =  param->tube_file_path+"eeds_"+anno.seq_name+"_"+sSFr.str()+"_"+sEFr.str()+".txt";
+        sSFr.str(""); sEFr.str("");
+        iStream.open(fileName.c_str());
+    }
+    cout<<fileName<<endl;
+
+    if(iStream){
+        iStream >> num_tubes;
+
+        vBounds.resize(num_tubes);
+        for(int tubeidx=0; tubeidx<num_tubes; ++tubeidx){
+            iStream >> dummy;
+
+            startIdx = dummy - param->tube_len/2;
+            endIdx   = startIdx + param->tube_len;
+
+            iStream >> dummy;
+            iStream >> dummy;
+            iStream >> dummy;
+            iStream >> dummy;
+
+
+            if(endIdx >= vFileListSize){
+                endIdx   = vFileListSize-1;
+                startIdx = endIdx - param->tube_len;
+                if(startIdx < 0){
+                    cout<<"warning: out of bounds during loading tubes; startIdx = "<<startIdx<<endl;
+                    startIdx=0;
+                }
+            }
+            else if(startIdx<0){
+                startIdx = 0;
+                endIdx   = startIdx + param->tube_len;
+                if(endIdx >= vFileListSize){
+                    cout<<"warning: out of bounds during loading tubes; endIdx = "<<endIdx<<endl;
+                    endIdx = vFileListSize -1;
+                }
+            }
+
+            vBounds[tubeidx].first = startIdx;
+            vBounds[tubeidx].second = endIdx;
+        }
+        iStream.close();
+    }
+    else{
+        cout<<"cannot open tubeseeds file: "<<fileName<<endl;
+        exit(-1);
+    }
+
+    return 0;
+}
+#endif

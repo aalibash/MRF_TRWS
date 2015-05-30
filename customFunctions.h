@@ -24,7 +24,8 @@ using namespace cv;
 void loadPotentials(char* configFile, const int paramIter, vector<TypeGeneral::REAL*>& unary, vector<TypeGeneral::REAL*>& handpath_unary,
                     vector<TypeGeneral::REAL*>& skin_unary, vector<TypeGeneral::REAL*>& saliency_unary, vector<TypeGeneral::REAL*>& size_unary,
                     vector<vector<TypeGeneral::REAL*> >& binary, vector<vector<TypeGeneral::REAL*> >& loc_binary, vector<vector<TypeGeneral::REAL*> >& phog_binary,
-                    int& nodeNum, int& numLabels, string& writePath, vector<vector<vector<Rect_<int> > > >& gtTubes, vector<vector<vector<Rect_<int> > > >& detTubes);
+                    int& nodeNum, int& numLabels, string& writePath, vector<vector<vector<Rect_<int> > > >& gtTubes, vector<vector<vector<Rect_<int> > > >& detTubes,
+                    vector<vector<pair<int,int> > >& tubeBounds);
 
 void destroyPotentials(vector<TypeGeneral::REAL*>& unary, vector<TypeGeneral::REAL*>& handpath_unary, vector<TypeGeneral::REAL*>& skin_unary,
                        vector<TypeGeneral::REAL*>& saliency_unary,vector<TypeGeneral::REAL*>& size_unary,
@@ -65,7 +66,9 @@ struct ObjectAnno{
 
 int loadTubes(const StructParam* param, const VideoAnno& anno, vector<vector<Rect> >& vvRect);
 int loadGtTubes(const StructParam* param, const VideoAnno& anno, vector<vector<Rect> >& vvRect);
-double calculate_solution_gt_overlap(const vector<vector<vector<Rect_<int> > > >& gtTubes, const vector<vector<vector<Rect_<int> > > >& detTubes, const vector<int>& solution_id);
+int loadTubeBounds(const StructParam* param, const VideoAnno& anno, vector<pair<int,int> >& vBounds);
+double calculate_solution_gt_overlap(const vector<vector<vector<Rect_<int> > > >& gtTubes, const vector<vector<vector<Rect_<int> > > >& detTubes,
+                                     const vector<vector<pair<int,int> > >& tubeBounds, const vector<int>& solution_id);
 double calculate_precision_recall(const vector<vector<vector<Rect_<int> > > >& refTubes, const vector<vector<vector<Rect_<int> > > >& tstTubes, const vector<int>& indices,
                                      double& precision, double& recall);
 

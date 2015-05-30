@@ -22,10 +22,11 @@ void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
 	vector<vector<TypeGeneral::REAL*> > phog_binary;
 
 	vector<vector<vector<Rect_<int> > > > gtTubes, detTubes;
+    vector<vector<pair<int,int> > > tubeBounds;
 	string writePath;
 
     loadPotentials(configFileName, paramIter, unary_pot, handpath_unary, skin_unary, saliency_unary, size_unary,
-                   binary_pot, loc_binary, phog_binary, numNodes, numLabels, writePath, gtTubes, detTubes);
+                   binary_pot, loc_binary, phog_binary, numNodes, numLabels, writePath, gtTubes, detTubes, tubeBounds);
 
 //    float sal_un=0.5, skin_un=0.5, size_un=0.5, phog_bn=0.5;
 
@@ -82,7 +83,7 @@ void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
                                 if(solution_tube_ids[idx] == numLabels-1)
                                     solution_tube_ids[idx] = -1;
                             }
-                            overlap = calculate_solution_gt_overlap(gtTubes,detTubes,solution_tube_ids);
+                            overlap = calculate_solution_gt_overlap(gtTubes,detTubes,tubeBounds,solution_tube_ids);
                             calculate_precision_recall(gtTubes, detTubes, solution_tube_ids, precision, recall);
 
 
@@ -126,7 +127,7 @@ int main(int argc, char* argv[])
     }
 
 #if REPLACE_LAST_TUBE_AS_NULL
-	for(int iterIdx=0; iterIdx<=NUM_ITER; ++iterIdx){
+    for(int iterIdx=0; iterIdx<=NUM_ITER; ++iterIdx){
 	    testGeneral(argv[1],atoi(argv[2]),iterIdx);
 	}
 #else
