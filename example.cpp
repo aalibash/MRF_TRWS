@@ -76,6 +76,59 @@ void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
                             options.m_iterMax = numBeliefIter; // maximum number of iterations
                             mrf->Minimize_TRW_S(options, lowerBound, energy);
 
+                            //////////////// rerun TRW-S algorithm N times ///////////////
+                            for(int idx=0; idx<NUM_RERUN_TRWS; ++idx){
+
+                                // update unaries being kicked out
+                                double max_val_unary=1e-10;
+                                for(int nodeIdx=0; nodeIdx<numNodes; ++nodeIdx){
+                                    int solIdx = mrf->GetSolution(nodes[nodeIdx]);
+
+                                    // add binaries being kicked out to unaries
+                                    for(int tstNodeIdx=0; tstNodeIdx<numNodes; ++tstNodeIdx){
+                                        if(nodeIdx == tstNodeIdx) continue;
+                                        for(int tstSolIdx=0; tstSolIdx<numLabels; ++tstSolIdx){
+                                            unary_pot[tstNodeIdx][tstSolIdx] += binary_pot[nodeIdx][tstNodeIdx][solIdx*numLabels+tstSolIdx];
+                                            if(unary_pot[tstNodeIdx][tstSolIdx] > max_val_unary){
+                                                max_val_unary = unary_pot[tstNodeIdx][tstSolIdx];
+                                            }
+                                        }
+                                    }
+                                }
+                                assert(max_val_unary>0);
+
+                                // kick out present solution
+                                for(int nodeIdx=0; nodeIdx<numNodes; ++nodeIdx){
+                                    int solIdx = mrf->GetSolution(nodes[nodeIdx]);
+                                    if(solIdx<numLabels-1){
+                                        unary_pot[nodeIdx][solIdx]=10*max_val_unary;
+                                    }
+                                    else{
+                                        unary_pot[nodeIdx][solIdx];
+                                    }
+                                }
+
+                                // reconstruct mrf
+                                delete mrf;
+                                delete nodes;
+                                mrf = new MRFEnergy<TypeGeneral>(TypeGeneral::GlobalSize());
+                                nodes = new MRFEnergy<TypeGeneral>::NodeId[numNodes];
+                                for(int refidx=0; refidx<numNodes; ++refidx){
+                                    nodes[refidx] = mrf->AddNode(TypeGeneral::LocalSize(numLabels), TypeGeneral::NodeData(unary_pot[refidx]));
+                                }
+                                for(int refidx=0; refidx<numNodes; ++refidx){
+                                    for(int tstidx=0; tstidx<numNodes; ++tstidx){
+                                        if(refidx<tstidx){
+                                            mrf->AddEdge(nodes[refidx], nodes[tstidx], TypeGeneral::EdgeData(TypeGeneral::GENERAL, binary_pot[refidx][tstidx]));
+                                        }
+                                    }
+                                }
+
+                                // resolve mrf
+                                options.m_iterMax = numBeliefIter;
+                                mrf->Minimize_TRW_S(options, lowerBound, energy);
+                            }
+
                             ////////////////// solution-gt overlap //////////////////////
                             vector<int> solution_tube_ids(numNodes,0);
                             for(int idx=0; idx<numNodes; ++idx){

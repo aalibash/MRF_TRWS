@@ -17,6 +17,8 @@
 #define AUXILLARY_UNARY_VAL_MAX     1
 #define AUXILLARY_BINARY_VAL        1
 #define NUM_ITER                    10
+#define MAX_WEIGHT                  1
+#define NUM_RERUN_TRWS              1
 
 using namespace std;
 using namespace cv;
