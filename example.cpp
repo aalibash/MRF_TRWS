@@ -86,7 +86,7 @@ void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
 
                                     // add binaries being kicked out to unaries
                                     for(int tstNodeIdx=0; tstNodeIdx<numNodes; ++tstNodeIdx){
-//                                        if(nodeIdx == tstNodeIdx) continue;
+                                        if(nodeIdx == tstNodeIdx) continue;
                                         for(int tstSolIdx=0; tstSolIdx<numLabels; ++tstSolIdx){
                                             unary_pot[tstNodeIdx][tstSolIdx] += binary_pot[nodeIdx][tstNodeIdx][solIdx*numLabels+tstSolIdx];
                                             if(unary_pot[tstNodeIdx][tstSolIdx] > max_val_unary){
