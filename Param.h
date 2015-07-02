@@ -11,8 +11,8 @@
 #include <fstream>
 
 #define ETHZ_ACTION_DATASET         0
-#define CAD_120_DATASET             1
-#define MPII_COOKING_DATASET        0
+#define CAD_120_DATASET             0
+#define MPII_COOKING_DATASET        1
 
 struct img_size {
     int h;
