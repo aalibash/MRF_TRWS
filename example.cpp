@@ -12,18 +12,21 @@ void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
 
 	int numNodes; // number of nodes
     int numLabels;
-	vector<TypeGeneral::REAL*>          unary_pot;
-	vector<TypeGeneral::REAL*>          handpath_unary;
-	vector<TypeGeneral::REAL*>          skin_unary;
-	vector<TypeGeneral::REAL*>          saliency_unary;
-	vector<TypeGeneral::REAL*>          size_unary;
-	vector<vector<TypeGeneral::REAL*> > binary_pot;
-	vector<vector<TypeGeneral::REAL*> > loc_binary;
-	vector<vector<TypeGeneral::REAL*> > phog_binary;
+	vector<TypeGeneral::REAL*>          unary_pot, unary_pot_orig;
+	vector<TypeGeneral::REAL*>          handpath_unary, handpath_unary_orig;
+	vector<TypeGeneral::REAL*>          skin_unary, skin_unary_orig;
+	vector<TypeGeneral::REAL*>          saliency_unary, saliency_unary_orig;
+	vector<TypeGeneral::REAL*>          size_unary, size_unary_orig;
+	vector<vector<TypeGeneral::REAL*> > binary_pot, binary_pot_orig;
+	vector<vector<TypeGeneral::REAL*> > loc_binary, loc_binary_orig;
+	vector<vector<TypeGeneral::REAL*> > phog_binary, phog_binary_orig;
 
 	vector<vector<vector<Rect_<int> > > > gtTubes, detTubes;
     vector<vector<pair<int,int> > > tubeBounds;
 	string writePath;
+
+	loadPotentials(configFileName, paramIter, unary_pot_orig, handpath_unary_orig, skin_unary_orig, saliency_unary_orig, size_unary_orig,
+                   binary_pot_orig, loc_binary_orig, phog_binary_orig, numNodes, numLabels, writePath, gtTubes, detTubes, tubeBounds);
 
     loadPotentials(configFileName, paramIter, unary_pot, handpath_unary, skin_unary, saliency_unary, size_unary,
                    binary_pot, loc_binary, phog_binary, numNodes, numLabels, writePath, gtTubes, detTubes, tubeBounds);
@@ -45,6 +48,8 @@ void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
                             for(int nodeIdx=0; nodeIdx<numNodes; ++nodeIdx){
                                 for(int labIdx=0; labIdx<numLabels; ++labIdx){
                                     unary_pot[nodeIdx][labIdx] = wgt[sal_un]*saliency_unary[nodeIdx][labIdx] + wgt[skin_un]*skin_unary[nodeIdx][labIdx] + wgt[size_un]*size_unary[nodeIdx][labIdx] + wgt[handpath_un]*handpath_unary[nodeIdx][labIdx];
+                                    unary_pot_orig[nodeIdx][labIdx] = wgt[sal_un]*saliency_unary_orig[nodeIdx][labIdx] + wgt[skin_un]*skin_unary_orig[nodeIdx][labIdx] +
+                                    wgt[size_un]*size_unary_orig[nodeIdx][labIdx] + wgt[handpath_un]*handpath_unary_orig[nodeIdx][labIdx];
                                 }
                             }
 
@@ -52,6 +57,7 @@ void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
                                 for(int tstIdx=0; tstIdx<numNodes; ++tstIdx){
                                     for(int labIdx=0; labIdx<numLabels*numLabels; ++labIdx){
                                         binary_pot[refIdx][tstIdx][labIdx] = wgt[loc_bn]*loc_binary[refIdx][tstIdx][labIdx] + wgt[phog_bn]*phog_binary[refIdx][tstIdx][labIdx];
+                                        binary_pot_orig[refIdx][tstIdx][labIdx] = wgt[loc_bn]*loc_binary_orig[refIdx][tstIdx][labIdx] + wgt[phog_bn]*phog_binary_orig[refIdx][tstIdx][labIdx];
                                     }
                                 }
                             }
@@ -140,6 +146,18 @@ void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
                             calculate_precision_recall(gtTubes, detTubes, solution_tube_ids, precision, recall);
 
 
+            #if COMPUTE_SOLN_ENERGY
+                            double currEnergy=0;
+                            for(int uidx=0; uidx<numNodes; ++uidx){
+                                currEnergy += unary_pot_orig[uidx][solution_tube_ids[uidx]];
+                                for(int bidx=0; bidx<uidx; ++bidx){
+                                    currEnergy += binary_pot_orig[uidx][bidx][solution_tube_ids[uidx]*numLabels+solution_tube_ids[bidx]];
+                                }
+                            }
+                            cout << "energy of the solution: " << currEnergy << endl;
+            #endif
+
+
             #if WRITE_FLAG
                             // save the solution configuration
                             ofstream oStream(writePath.c_str(),ios::app);
@@ -148,10 +166,11 @@ void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
                                 oStream<<mrf->GetSolution(nodes[idx])<<" ";
                                 cout<<mrf->GetSolution(nodes[idx])<<" ";
                             }
-                            cout<< overlap <<" "<< precision <<" "<< recall <<endl;
-                            oStream<<overlap <<" "<< precision <<" "<< recall <<endl;
+                            cout<< overlap <<" "<< precision <<" "<< recall << " " << currEnergy << endl;
+                            oStream<<overlap <<" "<< precision <<" "<< recall << " " << currEnergy << endl;
                             oStream.close();
             #else
+                            cout<<wgt[sal_un]<<" "<<wgt[skin_un]<<" "<<wgt[size_un]<<" "<<wgt[handpath_un]<<" "<<wgt[loc_bn]<<" "<<wgt[phog_bn]<<endl;
                             for(int idx=0; idx<numNodes; ++idx){
                                 cout<<mrf->GetSolution(nodes[idx])+1<<" ";
                             }
@@ -170,6 +189,7 @@ void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
 
 	// finally done
 	destroyPotentials(unary_pot, handpath_unary, skin_unary, saliency_unary, size_unary, binary_pot, loc_binary, phog_binary, numNodes);
+	destroyPotentials(unary_pot_orig, handpath_unary_orig, skin_unary_orig, saliency_unary_orig, size_unary_orig, binary_pot_orig, loc_binary_orig, phog_binary_orig, numNodes);
 }
 
 int main(int argc, char* argv[])
@@ -181,7 +201,7 @@ int main(int argc, char* argv[])
 
 #if REPLACE_LAST_TUBE_AS_NULL
     for(int iterIdx=0; iterIdx<=NUM_ITER; ++iterIdx){
-	    testGeneral(argv[1],atoi(argv[2]),iterIdx);
+	    testGeneral(argv[1],atoi(argv[2]),iterIdx); // iterIdx for setting the potential of the auxillary potential
 	}
 #else
     testGeneral(argv[1],atoi(argv[2]),NUM_ITER+1);

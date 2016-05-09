@@ -12,13 +12,14 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define WRITE_FLAG                  1
-#define REPLACE_LAST_TUBE_AS_NULL   1
+#define WRITE_FLAG                  0
+#define REPLACE_LAST_TUBE_AS_NULL   0
 #define AUXILLARY_UNARY_VAL_MAX     1
 #define AUXILLARY_BINARY_VAL        1
 #define NUM_ITER                    10
 #define MAX_WEIGHT                  1
-#define NUM_RERUN_TRWS              1
+#define NUM_RERUN_TRWS              0   // #iterations for repeating to extract solutions
+#define COMPUTE_SOLN_ENERGY         1
 
 using namespace std;
 using namespace cv;
