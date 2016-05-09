@@ -17,6 +17,7 @@ void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
 	vector<TypeGeneral::REAL*>          skin_unary, skin_unary_orig;
 	vector<TypeGeneral::REAL*>          saliency_unary, saliency_unary_orig;
 	vector<TypeGeneral::REAL*>          size_unary, size_unary_orig;
+	vector<TypeGeneral::REAL*>          objness_unary, objness_unary_orig;
 	vector<vector<TypeGeneral::REAL*> > binary_pot, binary_pot_orig;
 	vector<vector<TypeGeneral::REAL*> > loc_binary, loc_binary_orig;
 	vector<vector<TypeGeneral::REAL*> > phog_binary, phog_binary_orig;
@@ -25,11 +26,13 @@ void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
     vector<vector<pair<int,int> > > tubeBounds;
 	string writePath;
 
-	loadPotentials(configFileName, paramIter, unary_pot_orig, handpath_unary_orig, skin_unary_orig, saliency_unary_orig, size_unary_orig,
+	loadPotentials(configFileName, paramIter, unary_pot_orig, handpath_unary_orig, skin_unary_orig, saliency_unary_orig, size_unary_orig, objness_unary_orig,
                    binary_pot_orig, loc_binary_orig, phog_binary_orig, numNodes, numLabels, writePath, gtTubes, detTubes, tubeBounds);
 
-    loadPotentials(configFileName, paramIter, unary_pot, handpath_unary, skin_unary, saliency_unary, size_unary,
+    loadPotentials(configFileName, paramIter, unary_pot, handpath_unary, skin_unary, saliency_unary, size_unary, objness_unary,
                    binary_pot, loc_binary, phog_binary, numNodes, numLabels, writePath, gtTubes, detTubes, tubeBounds);
+
+    std::cout<< writePath << std::endl;
 
 //    float sal_un=0.5, skin_un=0.5, size_un=0.5, phog_bn=0.5;
 
@@ -42,83 +45,37 @@ void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
         for(int skin_un=0; skin_un<6; skin_un++){
             for(int size_un=0; size_un<6; size_un++){
                 for(int handpath_un=0; handpath_un<6; handpath_un++){
-                    for(int loc_bn=0; loc_bn<6; loc_bn++){
-                        for(int phog_bn=0; phog_bn<6; phog_bn++){
-                            // init the potentials
-                            for(int nodeIdx=0; nodeIdx<numNodes; ++nodeIdx){
-                                for(int labIdx=0; labIdx<numLabels; ++labIdx){
-                                    unary_pot[nodeIdx][labIdx] = wgt[sal_un]*saliency_unary[nodeIdx][labIdx] + wgt[skin_un]*skin_unary[nodeIdx][labIdx] + wgt[size_un]*size_unary[nodeIdx][labIdx] + wgt[handpath_un]*handpath_unary[nodeIdx][labIdx];
-                                    unary_pot_orig[nodeIdx][labIdx] = wgt[sal_un]*saliency_unary_orig[nodeIdx][labIdx] + wgt[skin_un]*skin_unary_orig[nodeIdx][labIdx] +
-                                    wgt[size_un]*size_unary_orig[nodeIdx][labIdx] + wgt[handpath_un]*handpath_unary_orig[nodeIdx][labIdx];
-                                }
-                            }
-
-                            for(int refIdx=0; refIdx<numNodes; ++refIdx){
-                                for(int tstIdx=0; tstIdx<numNodes; ++tstIdx){
-                                    for(int labIdx=0; labIdx<numLabels*numLabels; ++labIdx){
-                                        binary_pot[refIdx][tstIdx][labIdx] = wgt[loc_bn]*loc_binary[refIdx][tstIdx][labIdx] + wgt[phog_bn]*phog_binary[refIdx][tstIdx][labIdx];
-                                        binary_pot_orig[refIdx][tstIdx][labIdx] = wgt[loc_bn]*loc_binary_orig[refIdx][tstIdx][labIdx] + wgt[phog_bn]*phog_binary_orig[refIdx][tstIdx][labIdx];
-                                    }
-                                }
-                            }
-
-                            // now initiate and run the mrf
-                            mrf = new MRFEnergy<TypeGeneral>(TypeGeneral::GlobalSize());
-                            nodes = new MRFEnergy<TypeGeneral>::NodeId[numNodes];
-
-                            // construct energy
-                            for(int refidx=0; refidx<numNodes; ++refidx){
-                                nodes[refidx] = mrf->AddNode(TypeGeneral::LocalSize(numLabels), TypeGeneral::NodeData(unary_pot[refidx]));
-                            }
-                            for(int refidx=0; refidx<numNodes; ++refidx){
-                                for(int tstidx=0; tstidx<numNodes; ++tstidx){
-                                    if(refidx<tstidx){
-                                        mrf->AddEdge(nodes[refidx], nodes[tstidx], TypeGeneral::EdgeData(TypeGeneral::GENERAL, binary_pot[refidx][tstidx]));
-                                    }
-                                }
-                            }
-
-                            /////////////////////// TRW-S algorithm //////////////////////
-                            options.m_iterMax = numBeliefIter; // maximum number of iterations
-                            mrf->Minimize_TRW_S(options, lowerBound, energy);
-
-                            //////////////// rerun TRW-S algorithm N times ///////////////
-                            for(int idx=0; idx<NUM_RERUN_TRWS; ++idx){
-
-                                // update unaries being kicked out
-                                double max_val_unary=1e-10;
+                    for(int objness_un=0; objness_un<6; objness_un++){
+                        for(int loc_bn=0; loc_bn<6; loc_bn++){
+                            for(int phog_bn=0; phog_bn<6; phog_bn++){
+                                // init the potentials
                                 for(int nodeIdx=0; nodeIdx<numNodes; ++nodeIdx){
-                                    int solIdx = mrf->GetSolution(nodes[nodeIdx]);
+                                    for(int labIdx=0; labIdx<numLabels; ++labIdx){
+                                        unary_pot[nodeIdx][labIdx] = wgt[sal_un]*saliency_unary[nodeIdx][labIdx] + wgt[skin_un]*skin_unary[nodeIdx][labIdx] + wgt[size_un]*size_unary[nodeIdx][labIdx] + wgt[handpath_un]*handpath_unary[nodeIdx][labIdx];
+                                        unary_pot_orig[nodeIdx][labIdx] = wgt[sal_un]*saliency_unary_orig[nodeIdx][labIdx] + wgt[skin_un]*skin_unary_orig[nodeIdx][labIdx] +
+                                        wgt[size_un]*size_unary_orig[nodeIdx][labIdx] + wgt[handpath_un]*handpath_unary_orig[nodeIdx][labIdx];
 
-                                    // add binaries being kicked out to unaries
-                                    for(int tstNodeIdx=0; tstNodeIdx<numNodes; ++tstNodeIdx){
-                                        if(nodeIdx == tstNodeIdx) continue;
-                                        for(int tstSolIdx=0; tstSolIdx<numLabels; ++tstSolIdx){
-                                            unary_pot[tstNodeIdx][tstSolIdx] += binary_pot[nodeIdx][tstNodeIdx][solIdx*numLabels+tstSolIdx];
-                                            if(unary_pot[tstNodeIdx][tstSolIdx] > max_val_unary){
-                                                max_val_unary = unary_pot[tstNodeIdx][tstSolIdx];
-                                            }
+                                        #if INCLUDE_OBJNESS_POTENTIAL
+                                            unary_pot[nodeIdx][labIdx] += wgt[objness_un]*objness_unary[nodeIdx][labIdx];
+                                            unary_pot_orig[nodeIdx][labIdx] += wgt[objness_un]*objness_unary_orig[nodeIdx][labIdx];
+                                        #endif
+                                    }
+                                }
+
+                                for(int refIdx=0; refIdx<numNodes; ++refIdx){
+                                    for(int tstIdx=0; tstIdx<numNodes; ++tstIdx){
+                                        for(int labIdx=0; labIdx<numLabels*numLabels; ++labIdx){
+                                            binary_pot[refIdx][tstIdx][labIdx] = wgt[loc_bn]*loc_binary[refIdx][tstIdx][labIdx] + wgt[phog_bn]*phog_binary[refIdx][tstIdx][labIdx];
+                                            binary_pot_orig[refIdx][tstIdx][labIdx] = wgt[loc_bn]*loc_binary_orig[refIdx][tstIdx][labIdx] + wgt[phog_bn]*phog_binary_orig[refIdx][tstIdx][labIdx];
                                         }
                                     }
                                 }
-                                assert(max_val_unary>0);
 
-                                // kick out present solution
-                                for(int nodeIdx=0; nodeIdx<numNodes; ++nodeIdx){
-                                    int solIdx = mrf->GetSolution(nodes[nodeIdx]);
-                                    if(solIdx<numLabels-1){
-                                        unary_pot[nodeIdx][solIdx]=10*max_val_unary;
-                                    }
-                                    else{
-                                        unary_pot[nodeIdx][solIdx];
-                                    }
-                                }
-
-                                // reconstruct mrf
-                                delete mrf;
-                                delete nodes;
+                                // now initiate and run the mrf
                                 mrf = new MRFEnergy<TypeGeneral>(TypeGeneral::GlobalSize());
                                 nodes = new MRFEnergy<TypeGeneral>::NodeId[numNodes];
+
+                                // construct energy
                                 for(int refidx=0; refidx<numNodes; ++refidx){
                                     nodes[refidx] = mrf->AddNode(TypeGeneral::LocalSize(numLabels), TypeGeneral::NodeData(unary_pot[refidx]));
                                 }
@@ -130,56 +87,118 @@ void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
                                     }
                                 }
 
-                                // resolve mrf
-                                options.m_iterMax = numBeliefIter;
+                                /////////////////////// TRW-S algorithm //////////////////////
+                                options.m_iterMax = numBeliefIter; // maximum number of iterations
                                 mrf->Minimize_TRW_S(options, lowerBound, energy);
-                            }
 
-                            ////////////////// solution-gt overlap //////////////////////
-                            vector<int> solution_tube_ids(numNodes,0);
-                            for(int idx=0; idx<numNodes; ++idx){
-                                solution_tube_ids[idx] = mrf->GetSolution(nodes[idx]);
-                                if(solution_tube_ids[idx] == numLabels-1)
-                                    solution_tube_ids[idx] = -1;
-                            }
-                            overlap = calculate_solution_gt_overlap(gtTubes,detTubes,tubeBounds,solution_tube_ids);
-                            calculate_precision_recall(gtTubes, detTubes, solution_tube_ids, precision, recall);
+                                //////////////// rerun TRW-S algorithm N times ///////////////
+                                for(int idx=0; idx<NUM_RERUN_TRWS; ++idx){
 
+                                    // update unaries being kicked out
+                                    double max_val_unary=1e-10;
+                                    for(int nodeIdx=0; nodeIdx<numNodes; ++nodeIdx){
+                                        int solIdx = mrf->GetSolution(nodes[nodeIdx]);
 
-            #if COMPUTE_SOLN_ENERGY
-                            double currEnergy=0;
-                            for(int uidx=0; uidx<numNodes; ++uidx){
-                                currEnergy += unary_pot_orig[uidx][solution_tube_ids[uidx]];
-                                for(int bidx=0; bidx<uidx; ++bidx){
-                                    currEnergy += binary_pot_orig[uidx][bidx][solution_tube_ids[uidx]*numLabels+solution_tube_ids[bidx]];
+                                        // add binaries being kicked out to unaries
+                                        for(int tstNodeIdx=0; tstNodeIdx<numNodes; ++tstNodeIdx){
+                                            if(nodeIdx == tstNodeIdx) continue;
+                                            for(int tstSolIdx=0; tstSolIdx<numLabels; ++tstSolIdx){
+                                                unary_pot[tstNodeIdx][tstSolIdx] += binary_pot[nodeIdx][tstNodeIdx][solIdx*numLabels+tstSolIdx];
+                                                if(unary_pot[tstNodeIdx][tstSolIdx] > max_val_unary){
+                                                    max_val_unary = unary_pot[tstNodeIdx][tstSolIdx];
+                                                }
+                                            }
+                                        }
+                                    }
+                                    assert(max_val_unary>0);
+
+                                    // kick out present solution
+                                    for(int nodeIdx=0; nodeIdx<numNodes; ++nodeIdx){
+                                        int solIdx = mrf->GetSolution(nodes[nodeIdx]);
+                                        if(solIdx<numLabels-1){
+                                            unary_pot[nodeIdx][solIdx]=10*max_val_unary;
+                                        }
+                                        else{
+                                            unary_pot[nodeIdx][solIdx];
+                                        }
+                                    }
+
+                                    // reconstruct mrf
+                                    delete mrf;
+                                    delete nodes;
+                                    mrf = new MRFEnergy<TypeGeneral>(TypeGeneral::GlobalSize());
+                                    nodes = new MRFEnergy<TypeGeneral>::NodeId[numNodes];
+                                    for(int refidx=0; refidx<numNodes; ++refidx){
+                                        nodes[refidx] = mrf->AddNode(TypeGeneral::LocalSize(numLabels), TypeGeneral::NodeData(unary_pot[refidx]));
+                                    }
+                                    for(int refidx=0; refidx<numNodes; ++refidx){
+                                        for(int tstidx=0; tstidx<numNodes; ++tstidx){
+                                            if(refidx<tstidx){
+                                                mrf->AddEdge(nodes[refidx], nodes[tstidx], TypeGeneral::EdgeData(TypeGeneral::GENERAL, binary_pot[refidx][tstidx]));
+                                            }
+                                        }
+                                    }
+
+                                    // resolve mrf
+                                    options.m_iterMax = numBeliefIter;
+                                    mrf->Minimize_TRW_S(options, lowerBound, energy);
                                 }
-                            }
-                            cout << "energy of the solution: " << currEnergy << endl;
-            #endif
+
+                                ////////////////// solution-gt overlap //////////////////////
+                                vector<int> solution_tube_ids(numNodes,0);
+                                for(int idx=0; idx<numNodes; ++idx){
+                                    solution_tube_ids[idx] = mrf->GetSolution(nodes[idx]);
+                                    if(solution_tube_ids[idx] == numLabels-1)
+                                        solution_tube_ids[idx] = -1;
+                                }
+                                overlap = calculate_solution_gt_overlap(gtTubes,detTubes,tubeBounds,solution_tube_ids);
+                                calculate_precision_recall(gtTubes, detTubes, solution_tube_ids, precision, recall);
 
 
-            #if WRITE_FLAG
-                            // save the solution configuration
-                            ofstream oStream(writePath.c_str(),ios::app);
-                            oStream<<wgt[sal_un]<<" "<<wgt[skin_un]<<" "<<wgt[size_un]<<" "<<wgt[handpath_un]<<" "<<wgt[loc_bn]<<" "<<wgt[phog_bn]<<"\t";
-                            for(int idx=0; idx<numNodes; ++idx){
-                                oStream<<mrf->GetSolution(nodes[idx])<<" ";
-                                cout<<mrf->GetSolution(nodes[idx])<<" ";
-                            }
-                            cout<< overlap <<" "<< precision <<" "<< recall << " " << currEnergy << endl;
-                            oStream<<overlap <<" "<< precision <<" "<< recall << " " << currEnergy << endl;
-                            oStream.close();
-            #else
-                            cout<<wgt[sal_un]<<" "<<wgt[skin_un]<<" "<<wgt[size_un]<<" "<<wgt[handpath_un]<<" "<<wgt[loc_bn]<<" "<<wgt[phog_bn]<<endl;
-                            for(int idx=0; idx<numNodes; ++idx){
-                                cout<<mrf->GetSolution(nodes[idx])+1<<" ";
-                            }
-                            cout<<overlap <<" "<< precision <<" "<< recall <<endl;
-            #endif
+                #if COMPUTE_SOLN_ENERGY
+                                double currEnergy=0;
+                                for(int uidx=0; uidx<numNodes; ++uidx){
+                                    currEnergy += unary_pot_orig[uidx][solution_tube_ids[uidx]];
+                                    for(int bidx=0; bidx<uidx; ++bidx){
+                                        currEnergy += binary_pot_orig[uidx][bidx][solution_tube_ids[uidx]*numLabels+solution_tube_ids[bidx]];
+                                    }
+                                }
+                                cout << "energy of the solution: " << currEnergy << endl;
+                #endif
 
-                            // done
-                            delete nodes;
-                            delete mrf;
+
+                #if WRITE_FLAG
+                                // save the solution configuration
+                                ofstream oStream(writePath.c_str(),ios::app);
+                                #if INCLUDE_OBJNESS_POTENTIAL
+                                    oStream<<wgt[sal_un]<<" "<<wgt[skin_un]<<" "<<wgt[size_un]<<" "<<wgt[handpath_un]<<" "<<wgt[objness_un]<<" "<<wgt[loc_bn]<<" "<<wgt[phog_bn]<<"\t";
+                                #else
+                                    oStream<<wgt[sal_un]<<" "<<wgt[skin_un]<<" "<<wgt[size_un]<<" "<<wgt[handpath_un]<<" "<<wgt[loc_bn]<<" "<<wgt[phog_bn]<<"\t";
+                                #endif
+                                oStream<<wgt[sal_un]<<" "<<wgt[skin_un]<<" "<<wgt[size_un]<<" "<<wgt[handpath_un]<<" "<<wgt[loc_bn]<<" "<<wgt[phog_bn]<<"\t";
+                                for(int idx=0; idx<numNodes; ++idx){
+                                    oStream<<mrf->GetSolution(nodes[idx])<<" ";
+                                    cout<<mrf->GetSolution(nodes[idx])<<" ";
+                                }
+                                cout<< overlap <<" "<< precision <<" "<< recall << endl; //" " << currEnergy << endl;
+                                oStream<<overlap <<" "<< precision <<" "<< recall << endl; //" " << currEnergy << endl;
+                                oStream.close();
+                #else
+                                #if INCLUDE_OBJNESS_POTENTIAL
+                                    oStream<<wgt[sal_un]<<" "<<wgt[skin_un]<<" "<<wgt[size_un]<<" "<<wgt[handpath_un]<<" "<<wgt[objness_un]<<" "<<wgt[loc_bn]<<" "<<wgt[phog_bn]<<"\t";
+                                #else
+                                    oStream<<wgt[sal_un]<<" "<<wgt[skin_un]<<" "<<wgt[size_un]<<" "<<wgt[handpath_un]<<" "<<wgt[loc_bn]<<" "<<wgt[phog_bn]<<"\t";
+                                #endif
+                                for(int idx=0; idx<numNodes; ++idx){
+                                    cout<<mrf->GetSolution(nodes[idx])+1<<" ";
+                                }
+                                cout<<overlap <<" "<< precision <<" "<< recall <<endl;
+                #endif
+
+                                // done
+                                delete nodes;
+                                delete mrf;
+                            }
                         }
                     }
                 }
@@ -188,8 +207,8 @@ void testGeneral(char* configFileName, int numBeliefIter, int paramIter)
     }
 
 	// finally done
-	destroyPotentials(unary_pot, handpath_unary, skin_unary, saliency_unary, size_unary, binary_pot, loc_binary, phog_binary, numNodes);
-	destroyPotentials(unary_pot_orig, handpath_unary_orig, skin_unary_orig, saliency_unary_orig, size_unary_orig, binary_pot_orig, loc_binary_orig, phog_binary_orig, numNodes);
+	destroyPotentials(unary_pot, handpath_unary, skin_unary, saliency_unary, size_unary, objness_unary, binary_pot, loc_binary, phog_binary, numNodes);
+	destroyPotentials(unary_pot_orig, handpath_unary_orig, skin_unary_orig, saliency_unary_orig, size_unary_orig, objness_unary_orig, binary_pot_orig, loc_binary_orig, phog_binary_orig, numNodes);
 }
 
 int main(int argc, char* argv[])

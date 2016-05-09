@@ -12,26 +12,28 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define WRITE_FLAG                  0
+#define WRITE_FLAG                  1
 #define REPLACE_LAST_TUBE_AS_NULL   0
 #define AUXILLARY_UNARY_VAL_MAX     1
 #define AUXILLARY_BINARY_VAL        1
 #define NUM_ITER                    10
 #define MAX_WEIGHT                  1
 #define NUM_RERUN_TRWS              0   // #iterations for repeating to extract solutions
-#define COMPUTE_SOLN_ENERGY         1
+#define COMPUTE_SOLN_ENERGY         0
+
+#define INCLUDE_OBJNESS_POTENTIAL   1
 
 using namespace std;
 using namespace cv;
 
 void loadPotentials(char* configFile, const int paramIter, vector<TypeGeneral::REAL*>& unary, vector<TypeGeneral::REAL*>& handpath_unary,
-                    vector<TypeGeneral::REAL*>& skin_unary, vector<TypeGeneral::REAL*>& saliency_unary, vector<TypeGeneral::REAL*>& size_unary,
+                    vector<TypeGeneral::REAL*>& skin_unary, vector<TypeGeneral::REAL*>& saliency_unary, vector<TypeGeneral::REAL*>& size_unary, vector<TypeGeneral::REAL*>& objness_unary,
                     vector<vector<TypeGeneral::REAL*> >& binary, vector<vector<TypeGeneral::REAL*> >& loc_binary, vector<vector<TypeGeneral::REAL*> >& phog_binary,
                     int& nodeNum, int& numLabels, string& writePath, vector<vector<vector<Rect_<int> > > >& gtTubes, vector<vector<vector<Rect_<int> > > >& detTubes,
                     vector<vector<pair<int,int> > >& tubeBounds);
 
 void destroyPotentials(vector<TypeGeneral::REAL*>& unary, vector<TypeGeneral::REAL*>& handpath_unary, vector<TypeGeneral::REAL*>& skin_unary,
-                       vector<TypeGeneral::REAL*>& saliency_unary,vector<TypeGeneral::REAL*>& size_unary,
+                       vector<TypeGeneral::REAL*>& saliency_unary,vector<TypeGeneral::REAL*>& size_unary,vector<TypeGeneral::REAL*>& objness_unary,
                        vector<vector<TypeGeneral::REAL*> >& binary, vector<vector<TypeGeneral::REAL*> >& loc_binary,
                        vector<vector<TypeGeneral::REAL*> >& phog_binary, const int& nodeNum);
 

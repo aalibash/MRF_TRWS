@@ -4,12 +4,12 @@
 using namespace libconfig;
 
 void loadPotentials(char* configFile, const int paramIter, vector<TypeGeneral::REAL*>& unary, vector<TypeGeneral::REAL*>& handpath_unary,
-                    vector<TypeGeneral::REAL*>& skin_unary, vector<TypeGeneral::REAL*>& saliency_unary, vector<TypeGeneral::REAL*>& size_unary,
+                    vector<TypeGeneral::REAL*>& skin_unary, vector<TypeGeneral::REAL*>& saliency_unary, vector<TypeGeneral::REAL*>& size_unary, vector<TypeGeneral::REAL*>& objness_unary,
                     vector<vector<TypeGeneral::REAL*> >& binary, vector<vector<TypeGeneral::REAL*> >& loc_binary, vector<vector<TypeGeneral::REAL*> >& phog_binary,
                     int& nodeNum, int& numLabels, string& writePath, vector<vector<vector<Rect_<int> > > >& gtTubes, vector<vector<vector<Rect_<int> > > >& detTubes,
                     vector<vector<pair<int,int> > >& tubeBounds){
 
-    string handpath_unary_path, skin_unary_path, saliency_unary_path, size_unary_path, loc_binary_path, phog_binary_path, filtered_tube_ind_path;
+    string handpath_unary_path, skin_unary_path, saliency_unary_path, size_unary_path, loc_binary_path, phog_binary_path, filtered_tube_ind_path, objness_unary_path;
     string configFilePath;
     char buffer[1024];
     TypeGeneral::REAL temp;
@@ -27,6 +27,10 @@ void loadPotentials(char* configFile, const int paramIter, vector<TypeGeneral::R
     iStream >> loc_binary_path;
     iStream >> phog_binary_path;
     iStream >> writePath;
+
+#if INCLUDE_OBJNESS_POTENTIAL
+    iStream >> objness_unary_path;
+#endif
     iStream.close();
 
     // update save path
@@ -87,6 +91,23 @@ void loadPotentials(char* configFile, const int paramIter, vector<TypeGeneral::R
             }
             handpath_unary[rowidx][idx]/=1000;
 //            if(!isChosen[rowidx][idx]) handpath_unary[rowidx][idx]=maxWeight;
+        }
+    }
+    iStream.close();
+
+    // read objness_unary potentials
+    iStream.open(objness_unary_path.c_str());
+    iStream >> nodeNum;
+    iStream >> numLabels;
+    objness_unary.resize(nodeNum);
+    for(unsigned int rowidx=0; rowidx<objness_unary.size(); ++rowidx){
+        objness_unary[rowidx] = new TypeGeneral::REAL [numLabels];
+        for(int idx=0; idx<numLabels; ++idx){
+            iStream >> objness_unary[rowidx][idx];
+            if(objness_unary[rowidx][idx]>10){
+                objness_unary[rowidx][idx]=10;
+            }
+            objness_unary[rowidx][idx]/=10;
         }
     }
     iStream.close();
@@ -201,7 +222,7 @@ void loadPotentials(char* configFile, const int paramIter, vector<TypeGeneral::R
 }
 
 void destroyPotentials(vector<TypeGeneral::REAL*>& unary, vector<TypeGeneral::REAL*>& handpath_unary, vector<TypeGeneral::REAL*>& skin_unary,
-                       vector<TypeGeneral::REAL*>& saliency_unary,vector<TypeGeneral::REAL*>& size_unary,
+                       vector<TypeGeneral::REAL*>& saliency_unary,vector<TypeGeneral::REAL*>& size_unary,vector<TypeGeneral::REAL*>& objness_unary,
                        vector<vector<TypeGeneral::REAL*> >& binary, vector<vector<TypeGeneral::REAL*> >& loc_binary,
                        vector<vector<TypeGeneral::REAL*> >& phog_binary, const int& nodeNum){
 
@@ -211,6 +232,9 @@ void destroyPotentials(vector<TypeGeneral::REAL*>& unary, vector<TypeGeneral::RE
         delete [] skin_unary[rowidx];
         delete [] saliency_unary[rowidx];
         delete [] size_unary[rowidx];
+#if INCLUDE_OBJNESS_POTENTIAL
+        delete [] objness_unary[rowidx];
+#endif
     }
 
     for(unsigned int rowidx=0; rowidx<nodeNum; ++rowidx){
